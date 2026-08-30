@@ -59,6 +59,7 @@ export interface World {
 }
 
 const px = (t: number) => t * T;
+export { px };
 
 function buildInteriors(): Record<string, Interior> {
   const res: Record<string, Interior> = {};
@@ -207,7 +208,7 @@ export function buildWorld(): World {
   const azsX = 130, azsY = mainH_y + 8;         // АЗС "Лукойл"
   const partsX = 166, partsY = 17;              // Автозапчасти "Оригинал"
   const scrapX = 170, scrapY = 35;              // Разборка "У Васи"
-  const parkingX = 68, parkingY = 40;           // Парковка у магазинов
+  const parkingX = 165, parkingY = 108;           // Парковка над прудом (новая локация)
 
 // Координаты пруда и парка (нужны для размещения рыбака и собак ниже по коду)
 const pondX = 170, pondY = 115;               // Координаты центра парка (для рыбака и собак)
@@ -280,21 +281,21 @@ const safeBld = (x: number, y: number, w: number, h: number, name: string, wall:
   rect(10, 47, 72, 1, 2); rect(30, 47, 1, 10, 2); rect(70, 48, 1, 9, 2);
 
   // ---- заводская зона ----
-  const factoryB = { x: 8, y: 2, w: 12, h: 6 } as Building;
+  const factoryB = { x: 8, y: 10, w: 12, h: 6 } as Building;
   buildings.push({ ...factoryB, name: 'ЗАВОД «КРАСНЫЙ ОКТЯБРЬ»', wall: '#6e5a52', roof: '#4a3a34', kind: 'factory', sign: 'ЗАВОД' });
   solids.push({ x: px(factoryB.x), y: px(factoryB.y), w: factoryB.w * T, h: factoryB.h * T });
   doorObj({ ...factoryB, name: '', wall: '', roof: '', kind: '', sign: '' }, 'door_factory');
-  const shopB = { x: 30, y: 3, w: 14, h: 6 } as Building;
+  const shopB = { x: 30, y: 12, w: 14, h: 6 } as Building;
   buildings.push({ ...shopB, name: 'ЦЕХ №2', wall: '#5e6a72', roof: '#3e4a52', kind: 'factory', sign: 'ЦЕХ №2' });
   solids.push({ x: px(shopB.x), y: px(shopB.y), w: shopB.w * T, h: shopB.h * T });
   // главного входа в цех №2 НЕТ — двери заварены. Работает только чёрный вход (кража)
   objects.push({ id: 'theft', kind: 'theft', x: px(shopB.x + shopB.w) + 8, y: px(shopB.y + shopB.h / 2) });
-  safeBld(58, 3, 9, 5, 'СКЛАД', '#72685a', '#4e463a', 'factory');
-  const metalB = { x: 86, y: 3, w: 7, h: 4 } as Building;
+  safeBld(58, 12, 9, 5, 'СКЛАД', '#72685a', '#4e463a', 'factory');
+  const metalB = { x: 86, y: 12, w: 7, h: 4 } as Building;
   buildings.push({ ...metalB, name: 'ПРИЁМ МЕТАЛЛА', wall: '#3e6a8a', roof: '#2a4a62', kind: 'booth', sign: 'МЕТАЛЛОЛОМ' });
   solids.push({ x: px(86), y: px(3), w: 7 * T, h: 4 * T });
   objects.push({ id: 'rec_metal', kind: 'recycle', x: px(89.5), y: px(7) - 6, data: 'metal' });
-  const dumpsF = [[24, 10], [47, 6], [63, 10], [74, 4], [92, 10], [26, 3]];
+  const dumpsF = [[24, 18], [47, 14], [63, 18], [74, 12], [92, 18], [26, 11]];
   dumpsF.forEach((d, i) => objects.push({ id: 'dump_f' + i, kind: 'dump', x: px(d[0]), y: px(d[1]), data: 'factory' }));
 
   // ---- спальный район ----
@@ -441,32 +442,15 @@ objects.push({ id: 'ticket', kind: 'ticket', x: px(78), y: px(91) - 8 });
   buildings.push(partsB); solids.push({ x: px(partsX), y: px(partsY), w: 7 * T, h: 4 * T });
   doorObj(partsB, 'door_shop', 'autoparts');
   // Разборка "У Васи" (тёмный район) - мусорная куча убрана от входа (была прямо перед дверью)
-  const scrapB: Building = { x: scrapX, y: scrapY, w: 10, h: 6, name: 'РАЗБОРКА "У ВАСИ"', wall: '#3a3a3a', roof: '#2a2a2a', kind: 'scrapyard', sign: 'РАЗБОРКА', exitPoint: { x: px(scrapX + 5), y: px(scrapY + 8) } };
-  buildings.push(scrapB); solids.push({ x: px(scrapX), y: px(scrapY), w: 10 * T, h: 6 * T });
+  const scrapB: Building = { x: scrapX, y: scrapY + 5, w: 10, h: 6, name: 'РАЗБОРКА "У ВАСИ"', wall: '#3a3a3a', roof: '#2a2a2a', kind: 'scrapyard', sign: 'РАЗБОРКА', exitPoint: { x: px(scrapX + 5), y: px(scrapY + 8) } };
+  buildings.push(scrapB); solids.push({ x: px(scrapX), y: px(scrapY + 5), w: 10 * T, h: 6 * T });
+  doorObj(scrapB, 'door_shop', 'razborka');
   // Мусорная куча перемещена в сторону от входа (минимум 100px = ~3 тайла)
-  objects.push({ id: 'scrap_dump1', kind: 'dump', x: px(scrapX + 12), y: px(scrapY + 4), data: 'scrap' });
-  objects.push({ id: 'scrap_dump2', kind: 'dump', x: px(scrapX + 8), y: px(scrapY + 10), data: 'scrap' });
+  objects.push({ id: 'scrap_dump1', kind: 'dump', x: px(scrapX + 12), y: px(scrapY + 9), data: 'scrap' });
+  objects.push({ id: 'scrap_dump2', kind: 'dump', x: px(scrapX + 8), y: px(scrapY + 15), data: 'scrap' });
 
-// Парковка возле магазинов — скамейки + слоты под транспорт
-for (let i = 0; i < 6; i++) {
-  const spotX = parkingX + (i % 3) * 4;
-  const spotY = parkingY + Math.floor(i / 3) * 3;
-  objects.push({ id: 'parking_bench_' + i, kind: 'bench', x: px(spotX), y: px(spotY), data: 'parking' });
-}
-
-// ✅ СЛОТЫ ПОД ТРАНСПОРТ ИГРОКА (6 слотов)
-// Велосипед — первый слот
+// Парковка возле магазинов — скамейки + слоты под транспорт (только велосипед)
 objects.push({ id: 'player_bike', kind: 'vehicle' as any, x: px(parkingX + 1), y: px(parkingY + 1), data: 'bike_old' });
-// Скутер — второй слот
-objects.push({ id: 'player_scooter', kind: 'vehicle' as any, x: px(parkingX + 5), y: px(parkingY + 1), data: 'scooter_china' });
-// Лада — третий слот
-objects.push({ id: 'player_lada', kind: 'vehicle' as any, x: px(parkingX + 9), y: px(parkingY + 1), data: 'car_lada' });
-// Kia — четвёртый слот
-objects.push({ id: 'player_kia', kind: 'vehicle' as any, x: px(parkingX + 1), y: px(parkingY + 4), data: 'car_kia' });
-// Toyota — пятый слот
-objects.push({ id: 'player_toyota', kind: 'vehicle' as any, x: px(parkingX + 5), y: px(parkingY + 4), data: 'car_toyota' });
-// Газель — шестой слот
-objects.push({ id: 'player_truck', kind: 'vehicle' as any, x: px(parkingX + 9), y: px(parkingY + 4), data: 'truck_gaz' });
 
 
 

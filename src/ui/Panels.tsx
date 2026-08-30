@@ -69,6 +69,9 @@ export function ModalRenderer({ ui, game }: { ui: UIState; game: Game }) {
     case 'entrance': return <BuildingP id={m.id} ui={ui} game={game} onClose={close} />;
     case 'theft': return <TheftP game={game} onClose={close} />;
     case 'achievements': return <AchievementsMenu game={game} onClose={close} />;
+    case 'navigator': return <NavigatorP ui={ui} game={game} onClose={close} />;
+    case 'highway': return <HighwayP ui={ui} game={game} onClose={close} />;
+    case 'delivery': return <DeliveryP ui={ui} game={game} onClose={close} />;
     default: return null;
   }
 }
@@ -1243,6 +1246,271 @@ function TheftP({ game, onClose }: { game: Game; onClose: () => void }) {
       <p className="text-[9px] mt-2 text-center" style={{ color: '#5d6884' }}>
         Поймают — штраф 500 ₽ и конфискация. Без паспорта отвезут в участок на 2 часа.
       </p>
+    </Panel>
+  );
+}
+
+// ==================== НАВИГАТОР ДЛЯ КУРЬЕРА ====================
+function NavigatorP({ ui, game, onClose }: { ui: UIState; game: Game; onClose: () => void }) {
+  const s = game.state;
+  const target = s.deliveryTarget;
+  
+  if (!target) {
+    return (
+      <Panel title="🧭 Навигатор" sub="Нет активного заказа" onClose={onClose} w={400}>
+        <p className="text-[12px]" style={{ color: '#8b97b8' }}>Возьмите заказ в Пятёрочке для использования навигатора.</p>
+        <button className="btn btn-ghost w-full mt-3" onClick={onClose}>Закрыть (M)</button>
+      </Panel>
+    );
+  }
+  
+  // Расстояние до цели
+  const dist = Math.hypot(game.px - target.x, game.py - target.y);
+  const distMeters = Math.round(dist / 32);
+  
+  return (
+    <Panel title="🧭 Навигатор курьера" sub={`Цель: ${target.homeName}`} onClose={onClose} w={450}>
+      {/* Мини-карта */}
+      <div className="panel p-0 mb-3 overflow-hidden relative" style={{ background: '#0a0e1a', height: 200, border: '2px solid #2b3550' }}>
+        {/* Сетка карты */}
+        <div className="absolute inset-0 opacity-20" style={{ 
+          backgroundImage: 'linear-gradient(#2b3550 1px, transparent 1px), linear-gradient(90deg, #2b3550 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }} />
+        
+        {/* Игрок (зелёная точка) */}
+        <div className="absolute w-3 h-3 rounded-full animate-pulse" style={{ 
+          background: '#4ade80',
+          boxShadow: '0 0 10px #4ade80',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)'
+        }} />
+        
+        {/* Точка доставки (красная метка) */}
+        <div className="absolute w-4 h-4" style={{ 
+          left: `${50 + (target.x - game.px) * 0.5}%`,
+          top: `${50 + (target.y - game.py) * 0.5}%`,
+          transform: 'translate(-50%, -50%)'
+        }}>
+          <div className="w-full h-full rounded-full animate-ping" style={{ background: '#ef4444', opacity: 0.5 }} />
+          <div className="absolute inset-0 w-3 h-3 rounded-full mx-auto my-auto" style={{ background: '#ef4444', boxShadow: '0 0 10px #ef4444' }} />
+        </div>
+        
+        {/* Линия маршрута (пунктирная) */}
+        <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }}>
+          <line 
+            x1="50%" y1="50%" 
+            x2={`${50 + (target.x - game.px) * 0.5}%`} 
+            y2={`${50 + (target.y - game.py) * 0.5}%`}
+            stroke="#fbbf24" 
+            strokeWidth="2" 
+            strokeDasharray="5,5"
+            opacity="0.7"
+          />
+        </svg>
+        
+        {/* Легенда */}
+        <div className="absolute bottom-2 left-2 flex items-center gap-2 text-[9px]" style={{ color: '#c6cede', background: 'rgba(0,0,0,0.7)', padding: '4px 8px', borderRadius: 4 }}>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: '#4ade80' }} /> Вы</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} /> Цель</span>
+        </div>
+      </div>
+      
+      {/* Информация о заказе */}
+      <div className="panel p-3 mb-3" style={{ background: '#12161f' }}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px]" style={{ color: '#8b97b8' }}>Адрес доставки</span>
+          <span className="text-[13px] font-bold" style={{ color: '#e9edf6' }}>{target.homeName}</span>
+        </div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px]" style={{ color: '#8b97b8' }}>Расстояние</span>
+          <span className={`text-[13px] font-bold ${distMeters < 50 ? 'text-green-400' : 'text-amber-400'}`} style={{ color: distMeters < 50 ? '#4ade80' : '#fbbf24' }}>{distMeters} м</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px]" style={{ color: '#8b97b8' }}>Награда</span>
+          <span className="text-[15px] font-bold" style={{ color: '#8ee06e' }}>{target.reward} ₽</span>
+        </div>
+      </div>
+      
+      {/* Подсказки */}
+      <div className="text-[10px] text-center space-y-1" style={{ color: '#5d6884' }}>
+        <p>Следуйте к красной точке на карте</p>
+        <p>Подойдите вплотную и нажмите E для доставки</p>
+      </div>
+      
+      <button className="btn btn-ghost w-full mt-3" onClick={onClose}>Закрыть (M)</button>
+    </Panel>
+  );
+}
+
+// ==================== СЦЕНА ТРАССЫ (МЕЖДУГОРОДНЯЯ ДОСТАВКА) ====================
+function HighwayP({ ui, game, onClose }: { ui: UIState; game: Game; onClose: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const [speed, setSpeed] = useState(0);
+  const intervalRef = useRef<number>();
+  
+  useEffect(() => {
+    // Симуляция поездки по трассе
+    intervalRef.current = window.setInterval(() => {
+      setSpeed(Math.floor(60 + Math.random() * 40)); // 60-100 км/ч
+      setProgress(prev => {
+        const newProgress = prev + 0.5; // Прогресс поездки
+        if (newProgress >= 100) {
+          clearInterval(intervalRef.current);
+          setTimeout(() => {
+            game.completeHighwayDelivery();
+          }, 500);
+          return 100;
+        }
+        return newProgress;
+      });
+    }, 100);
+    
+    return () => clearInterval(intervalRef.current);
+  }, []);
+  
+  const m = ui.modal as Extract<Modal, { kind: 'highway' }>;
+  const remaining = Math.round((100 - progress) * m.distance / 100);
+  
+  return (
+    <Panel title="🚛 Трасса" sub={`Поездка в ${m.targetCity}`} onClose={onClose} w={500}>
+      {/* Визуализация дороги */}
+      <div className="panel p-0 mb-3 overflow-hidden relative" style={{ background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', height: 180 }}>
+        {/* Дорога с разметкой */}
+        <div className="absolute inset-x-0 bottom-0 h-24" style={{ background: '#2d3436' }}>
+          {/* Разделительная полоса */}
+          <div className="absolute inset-x-0 top-1/2 h-1" style={{ 
+            backgroundImage: 'linear-gradient(90deg, #fbbf24 50%, transparent 50%)',
+            backgroundSize: '40px 100%'
+          }} />
+          {/* Боковые линии */}
+          <div className="absolute left-0 top-0 bottom-0 w-2" style={{ background: '#fff' }} />
+          <div className="absolute right-0 top-0 bottom-0 w-2" style={{ background: '#fff' }} />
+        </div>
+        
+        {/* Горизонт с горами */}
+        <div className="absolute inset-x-0 bottom-24 h-16" style={{ 
+          background: 'linear-gradient(180deg, transparent 0%, #1a1a2e 100%)',
+          clipPath: 'polygon(0% 100%, 0% 20%, 15% 40%, 30% 15%, 45% 35%, 60% 10%, 75% 30%, 90% 20%, 100% 40%, 100% 100%)'
+        }} />
+        
+        {/* Другие машины */}
+        <div className="absolute bottom-8 left-1/4 w-8 h-4 rounded" style={{ background: '#e74c3c', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
+        <div className="absolute bottom-16 right-1/3 w-10 h-5 rounded" style={{ background: '#3498db', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
+        
+        {/* Небо со звёздами */}
+        <div className="absolute inset-x-0 top-0 h-20 opacity-30" style={{ 
+          backgroundImage: 'radial-gradient(white 1px, transparent 1px)',
+          backgroundSize: '30px 30px'
+        }} />
+      </div>
+      
+      {/* Приборная панель */}
+      <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="panel p-3 text-center" style={{ background: '#12161f' }}>
+          <div className="text-[10px] mb-1" style={{ color: '#8b97b8' }}>Скорость</div>
+          <div className="text-[24px] font-bold" style={{ color: '#4ade80' }}>{speed}</div>
+          <div className="text-[9px]" style={{ color: '#5d6884' }}>км/ч</div>
+        </div>
+        <div className="panel p-3 text-center" style={{ background: '#12161f' }}>
+          <div className="text-[10px] mb-1" style={{ color: '#8b97b8' }}>Прогресс</div>
+          <div className="text-[24px] font-bold" style={{ color: '#fbbf24' }}>{Math.round(progress)}%</div>
+          <div className="w-full h-2 mt-1 rounded-full overflow-hidden" style={{ background: '#2b3550' }}>
+            <div className="h-full transition-all" style={{ width: `${progress}%`, background: '#fbbf24' }} />
+          </div>
+        </div>
+        <div className="panel p-3 text-center" style={{ background: '#12161f' }}>
+          <div className="text-[10px] mb-1" style={{ color: '#8b97b8' }}>Осталось</div>
+          <div className="text-[20px] font-bold" style={{ color: '#60a5fa' }}>{remaining}</div>
+          <div className="text-[9px]" style={{ color: '#5d6884' }}>км</div>
+        </div>
+      </div>
+      
+      {/* Информация о заказе */}
+      <div className="panel p-3 mb-3" style={{ background: '#12161f' }}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px]" style={{ color: '#8b97b8' }}>Город назначения</span>
+          <span className="text-[13px] font-bold" style={{ color: '#e9edf6' }}>{m.targetCity}</span>
+        </div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px]" style={{ color: '#8b97b8' }}>Общее расстояние</span>
+          <span className="text-[13px] font-bold" style={{ color: '#c6cede' }}>{m.distance} км</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px]" style={{ color: '#8b97b8' }}>Награда</span>
+          <span className="text-[15px] font-bold" style={{ color: '#8ee06e' }}>{m.reward} ₽</span>
+        </div>
+      </div>
+      
+      {/* Управление */}
+      <div className="text-[10px] text-center space-y-1" style={{ color: '#5d6884' }}>
+        <p>Управление: WASD или стрелки</p>
+        <p>Избегайте столкновений с другими машинами!</p>
+        <p className="text-[9px]">При достижении 100% вы прибудете в город назначения</p>
+      </div>
+      
+      <button className="btn btn-ghost w-full mt-2" onClick={onClose}>Отменить поездку</button>
+    </Panel>
+  );
+}
+
+// ==================== МЕНЮ ДОСТАВКИ (КУРЬЕР ПО ГОРОДУ) ====================
+function DeliveryP({ ui, game, onClose }: { ui: UIState; game: Game; onClose: () => void }) {
+  const s = game.state;
+  const target = s.deliveryTarget;
+  
+  if (!target) {
+    return (
+      <Panel title="📦 Доставка" sub="Нет активного заказа" onClose={onClose} w={400}>
+        <p className="text-[12px]" style={{ color: '#8b97b8' }}>Возьмите заказ в Пятёрочке.</p>
+        <button className="btn btn-ghost w-full mt-3" onClick={onClose}>Закрыть</button>
+      </Panel>
+    );
+  }
+  
+  const dist = Math.hypot(game.px - target.x, game.py - target.y);
+  const distMeters = Math.round(dist / 32);
+  
+  return (
+    <Panel title="📦 Заказ курьера" sub={s.deliveryPhase === 'toCustomer' ? 'Доставка клиенту' : 'Возврат в магазин'} onClose={onClose} w={420}>
+      <div className="panel p-3 mb-3" style={{ background: '#12161f' }}>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[20px]">{s.deliveryPhase === 'toCustomer' ? '🏠' : '🏪'}</span>
+          <div>
+            <div className="text-[13px] font-bold" style={{ color: '#e9edf6' }}>
+              {s.deliveryPhase === 'toCustomer' ? target.homeName : 'Пятёрочка'}
+            </div>
+            <div className="text-[10px]" style={{ color: '#8b97b8' }}>
+              {s.deliveryPhase === 'toCustomer' ? 'Адрес доставки' : 'Вернитесь за новым заказом'}
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between py-2 border-t border-b border-[#2b355066]">
+          <span className="text-[11px]" style={{ color: '#8b97b8' }}>Расстояние</span>
+          <span className={`text-[13px] font-bold ${distMeters < 50 ? 'text-green-400' : 'text-amber-400'}`} style={{ color: distMeters < 50 ? '#4ade80' : '#fbbf24' }}>{distMeters} м</span>
+        </div>
+        
+        <div className="flex items-center justify-between pt-2">
+          <span className="text-[11px]" style={{ color: '#8b97b8' }}>Награда</span>
+          <span className="text-[15px] font-bold" style={{ color: '#8ee06e' }}>{target.reward} ₽</span>
+        </div>
+      </div>
+      
+      {distMeters < 50 && s.deliveryPhase === 'toCustomer' && (
+        <button className="btn btn-amber w-full mb-2" onClick={() => game.completeDelivery()}>
+          ✅ Доставить заказ
+        </button>
+      )}
+      
+      <div className="text-[10px] text-center" style={{ color: '#5d6884' }}>
+        {s.deliveryPhase === 'toCustomer' 
+          ? 'Подойдите вплотную к подъезду и нажмите "Доставить заказ"'
+          : 'Доставка выполнена! Новый заказ будет доступен через 1 минуту'}
+      </div>
+      
+      <button className="btn btn-ghost w-full mt-2" onClick={onClose}>Закрыть</button>
     </Panel>
   );
 }

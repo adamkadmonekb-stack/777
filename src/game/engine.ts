@@ -1,4 +1,4 @@
-﻿import { buildWorld, T, MW, MH, tileAt, districtAt } from './world';
+﻿import { buildWorld, T, MW, MH, tileAt, districtAt, px } from './world';
 import type { World, Interior, WObj, Npc, Dog, InteriorObj } from './world';
 import {
   ITEMS, BACKPACKS, APARTMENTS, SHOPS, RECYCLE, RECIPES, WORKERS, APPLIANCES,
@@ -37,7 +37,7 @@ export type Modal =
   | { kind: 'realtor' }
   | { kind: 'room' }
   | { kind: 'newspaper' }
-  | { kind: 'phone' }
+  | { kind: 'phone'; deliveryMenu?: boolean; highwayMenu?: boolean }
   | { kind: 'workers' }
   | { kind: 'craft' }
   | { kind: 'quests' }
@@ -56,7 +56,10 @@ export type Modal =
   | { kind: 'factory'; id: 'factory' | 'workshop' }
   | { kind: 'entrance'; id: string }
   | { kind: 'theft' }
-  | { kind: 'minigame'; game: 'dump' | 'clean' | 'repair' | 'fish' | 'qte' | 'carry' | 'cut'; data: Record<string, unknown> };
+  | { kind: 'minigame'; game: 'dump' | 'clean' | 'repair' | 'fish' | 'qte' | 'carry' | 'cut'; data: Record<string, unknown> }
+  | { kind: 'navigator' }
+  | { kind: 'highway'; distance: number; reward: number; targetCity: string }
+  | { kind: 'delivery'; targetName: string; reward: number; phase: 'toCustomer' | 'toStore' };
 
 export interface TravelState { to: number; mode: Transport; t: number; dur: number; }
 
@@ -642,16 +645,18 @@ if (this.state.activeVehicle) {
         case 'kiosk': this.prompt = 'Киоск «Печать» — газета 20 ₽'; break;
         case 'baraholka': this.prompt = 'Барахолка: продать и купить'; break;
         case 'worker': { const w = WORKERS.find(w => w.id === best!.data); this.prompt = `${w?.name} — предложить работу`; break; }
-case 'vehicle': {
-  const vid = o.data;
-  const def = VEHICLES[vid];
-  this.prompt = this.state.activeVehicle === vid 
-    ? `Выйти из ${def?.name}` 
-    : !this.state.activeVehicle 
-      ? `Сесть на ${def?.name}` 
-      : 'Сначала выйдите из текущего транспорта';
-  break;
-}
+        case 'vehicle': {
+          const vid = best.data;
+          const def = VEHICLES[vid];
+          const owned = this.state.vehicles.find(v => v.id === vid);
+          if (!def) { this.prompt = 'Транспорт'; break; }
+          this.prompt = this.state.activeVehicle === vid
+            ? `Выйти из ${def.name}`
+            : !this.state.activeVehicle
+              ? (owned ? `Сесть в ${def.name} (ваш)` : `Сесть на ${def.name}`)
+              : 'Сначала выйдите из текущего транспорта';
+          break;
+        }
         default: break;
       }
     }
@@ -732,17 +737,6 @@ case 'vehicle': {
       case 'fridge': return 'Открыть холодильник [E]';
       case 'washer': return 'Постирать одежду (гигиена +20) [E]';
       case 'tv': return 'Смотреть ТВ (настроение +15) [E]';
-case 'vehicle': {
-  const vid = o.data;
-  if (this.state.activeVehicle === vid) {
-    this.exitVehicle();
-  } else if (!this.state.activeVehicle) {
-    this.enterVehicle(vid);
-  } else {
-    this.toast('Сначала выйдите из текущего транспорта', 'info');
-  }
-  break;
-}
       case 'toilet': return 'Воспользоваться туалетом [E]';
       default: return 'Осмотреть';
     }
@@ -1051,18 +1045,6 @@ this.updateAchievement('apartment_cook_15', s.cookCount);
       case 'kiosk': this.buyNewspaper(); break;
       case 'baraholka': this.openModal({ kind: 'baraholka' }); break;
       case 'worker': this.openModal({ kind: 'workers' }); break;
-case 'vehicle': {
-  // Транспорт игрока
-  const vid = o.data;
-  if (this.state.activeVehicle === vid) {
-    this.exitVehicle();
-  } else if (!this.state.activeVehicle) {
-    this.enterVehicle(vid);
-  } else {
-    this.toast('Сначала выйдите из текущего транспорта', 'info');
-  }
-  break;
-}
       default: break;
     }
   }
@@ -1429,7 +1411,221 @@ this.updateAchievement('capital_1m', s.money);
   // ==================== ДЕЙСТВИЯ UI ====================
   openModal(m: Modal) { this.modal = m; this.joy = { x: 0, y: 0 }; this.bump(); }
   closeModal() { this.modal = null; this.bump(); }
-  toast(text: string, kind: Toast['kind']) {
+  // ==================== ДОСТАВКА ИЗ ПЯТЁРОЧКИ (КУРЬЕР) ====================
+  openDeliveryMenu(shopId: string) {
+    const s = this.state;
+    if (shopId !== 'pyaterochka') return;
+    
+    // Если уже есть активный заказ - доставляем
+    if (s.deliveryActive && s.deliveryTarget) {
+      // Проверяем расстояние до точки доставки
+      const dist = Math.hypot(this.px - s.deliveryTarget.x, this.py - s.deliveryTarget.y);
+      if (dist < 60) {
+        // Доставили!
+        this.completeDelivery();
+      } else {
+        this.toast(`Ещё далеко до точки (${Math.round(dist/32)} м)`, 'info');
+      }
+      return;
+    }
+    
+    // Меню выбора: магазин или работа курьером
+    this.openModal({ kind: 'phone', deliveryMenu: true });
+  }
+  
+  startDelivery() {
+    const s = this.state;
+    if (s.deliveryActive) return;
+    
+    // Выбираем случайную точку доставки из домов
+    const homes = this.world.buildings.filter(b => b.kind === 'house' || b.kind === 'apart');
+    if (homes.length === 0) {
+      this.toast('Нет доступных адресов для доставки', 'bad');
+      return;
+    }
+    
+    const home = homes[Math.floor(Math.random() * homes.length)];
+    const reward = Math.floor(ri(200, 500));
+    
+    s.deliveryActive = true;
+    s.deliveryTarget = {
+      x: px(home.x + home.w / 2),
+      y: px(home.y + home.h),
+      homeName: home.name || 'ДОМ',
+      reward: reward
+    };
+    s.deliveryPhase = 'toCustomer';
+    
+    // Отправляем SMS
+    this.sendSMS(`📱 Новый заказ! Адрес: ${home.name || 'ул. Ленина, д. ' + ri(1, 50)}. Награда: ${reward}₽`);
+    
+    // Автоматически открываем навигатор
+    this.openModal({ kind: 'navigator' });
+    
+    this.toast('Заказ взят! Следуйте к точке доставки', 'good');
+    sfx.quest();
+  }
+  
+  completeDelivery() {
+    const s = this.state;
+    if (!s.deliveryTarget) return;
+    
+    this.gainMoney(s.deliveryTarget.reward);
+    this.toast(`✅ Заказ доставлен! +${s.deliveryTarget.reward}₽`, 'money');
+    sfx.win();
+    
+    // Сбрасываем заказ
+    s.deliveryActive = false;
+    s.deliveryTarget = null;
+    s.deliveryPhase = 'toStore';
+    
+    // Через некоторое время новый заказ
+    setTimeout(() => {
+      if (!s.deliveryActive && this.modal?.kind === 'navigator') {
+        this.sendSMS('📱 Новый заказ доступен в Пятёрочке!');
+        this.toast('Новый заказ доступен!', 'info');
+      }
+    }, 60000); // 1 минута
+    
+    this.closeModal();
+  }
+  
+  // ==================== МЕЖДУГОРОДНЯЯ ДОСТАВКА (ТРАССА) ====================
+  openHighwayMenu() {
+    const s = this.state;
+    
+    // Если уже активна доставка на трассе
+    if (s.highwayActive) {
+      this.toast('Вы уже в пути! Следуйте к пункту назначения', 'info');
+      return;
+    }
+    
+    // Меню выбора: магазин или доставка стройматериалов
+    this.openModal({ kind: 'phone', highwayMenu: true });
+  }
+  
+  startHighwayDelivery() {
+    const s = this.state;
+    if (s.highwayActive) return;
+    
+    // Выбираем случайный город назначения
+    const cities = s.cities.filter((_, i) => i !== s.cityIndex);
+    if (cities.length === 0) {
+      this.toast('Нет доступных городов для доставки', 'bad');
+      return;
+    }
+    
+    const targetCity = cities[Math.floor(Math.random() * cities.length)];
+    const reward = Math.floor(ri(1000, 3000));
+    const distance = ri(400, 800); // км
+    
+    s.highwayActive = true;
+    s.highwayProgress = 0;
+    s.highwayTargetCity = targetCity.name;
+    
+    // Отправляем SMS
+    this.sendSMS(`📱 Заказ на доставку стройматериалов! Город: ${targetCity.name}. Расстояние: ${distance} км. Награда: ${reward}₽`);
+    
+    this.toast(`🚛 Маршрут построен: ${targetCity.name} (${distance} км)`, 'good');
+    sfx.quest();
+    
+    // Запускаем сцену трассы
+    this.openModal({ kind: 'highway', distance, reward, targetCity: targetCity.name });
+  }
+  
+  completeHighwayDelivery() {
+    const s = this.state;
+    if (!s.highwayActive) return;
+    
+    const reward = Math.floor(ri(1000, 3000));
+    this.gainMoney(reward);
+    this.toast(`✅ Доставка завершена! +${reward}₽`, 'money');
+    sfx.win();
+    
+    s.highwayActive = false;
+    s.highwayProgress = 0;
+    s.highwayTargetCity = null;
+    
+    this.closeModal();
+  }
+  
+  // ==================== SMS-УВЕДОМЛЕНИЯ ====================
+  sendSMS(text: string) {
+    if (!this.state.phone && !this.hasItem('phone1') && !this.hasItem('phone2') && !this.hasItem('phone3')) {
+      this.toast(`📱 Входящее сообщение (нет телефона): ${text}`, 'info');
+      return;
+    }
+    this.toast(text, 'info');
+    sfx.click();
+  }
+  
+  // ==================== ТОПЛИВО И ЗАПРАВКА ====================
+  refuelVehicle(vehicleId: string, fuelType: string, liters: number) {
+    const vehicle = this.state.vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) {
+      this.toast('Транспорт не найден', 'bad');
+      return false;
+    }
+    
+    const prices: Record<string, number> = {
+      'fuel92': 45,
+      'fuel95': 52,
+      'fuel98': 62,
+      'diesel': 55
+    };
+    
+    const pricePerLiter = prices[fuelType] || 45;
+    const totalCost = liters * pricePerLiter;
+    
+    if (!this.spend(totalCost)) {
+      this.toast('Недостаточно денег', 'bad');
+      return false;
+    }
+    
+    vehicle.fuel = Math.min(100, vehicle.fuel + liters);
+    this.toast(`✅ Заправлено ${liters}л (${fuelType}). Баланс: ${vehicle.fuel}%`, 'good');
+    sfx.coin();
+    return true;
+  }
+  
+  getVehicleFuel(vehicleId: string): number {
+    const vehicle = this.state.vehicles.find(v => v.id === vehicleId);
+    return vehicle ? vehicle.fuel : 0;
+  }
+  
+  consumeFuel(vehicleId: string, liters: number) {
+    const vehicle = this.state.vehicles.find(v => v.id === vehicleId);
+    if (!vehicle) return;
+    
+    vehicle.fuel = Math.max(0, vehicle.fuel - liters);
+    if (vehicle.fuel <= 0) {
+      this.toast('⛔ Топливо закончилось!', 'bad');
+      this.exitVehicle();
+    }
+  }
+
+  // ==================== АЧИВКИ ====================
+  updateAchievement(id: string, progress: number) {
+    const s = this.state;
+    const ach = ACHIEVEMENTS.find(a => a.id === id);
+    if (!ach) return;
+    
+    const current = s.achievements[id] || { unlocked: false, progress: 0 };
+    
+    if (current.unlocked) return; // Уже разблокирована
+    
+    const newProgress = Math.min(ach.target, progress);
+    s.achievements[id] = { ...current, progress: newProgress };
+    
+    if (newProgress >= ach.target) {
+      s.achievements[id].unlocked = true;
+      this.toast(`🏆 АЧИВКА: ${ach.name}`, 'good');
+      sfx.win();
+      this.bump();
+    }
+  }
+
+  private toast(text: string, kind: Toast['kind']) {
     if (!text) return;
     this.toasts.push({ id: this.toastId++, text, kind, t: 0 });
     if (this.toasts.length > 4) this.toasts.shift();
@@ -1463,36 +1659,8 @@ this.updateAchievement('capital_1m', s.money);
     this.bump();
   }
 
-  // ==================== АЧИВКИ ====================
-  updateAchievement(id: string, amount: number) {
-    const achDef = getAchievement(id);
-    if (!achDef) return;
-    const state = this.state.achievements[id] || { unlocked: false, progress: 0 };
-    if (state.unlocked) return; // уже разблокировано
-    state.progress = Math.min(achDef.target, state.progress + amount);
-    if (state.progress >= achDef.target && !state.unlocked) {
-      // Разблокировка!
-      state.unlocked = true;
-      this.state.achievements[id] = state;
-      // Награды
-      if (achDef.rewardMoney > 0) this.gainMoney(achDef.rewardMoney);
-      if (achDef.rewardRep !== 0) {
-        this.state.rep.homeless = clamp(this.state.rep.homeless + achDef.rewardRep, 0, 100);
-      }
-      // Уведомление
-      this.toast(`🏆 Ачивка: ${achDef.name}!`, 'good');
-      if (achDef.rewardMoney > 0 || achDef.rewardRep !== 0) {
-        const rewards: string[] = [];
-        if (achDef.rewardMoney > 0) rewards.push(`+${achDef.rewardMoney}₽`);
-        if (achDef.rewardRep !== 0) rewards.push(`${achDef.rewardRep > 0 ? '+' : ''}${achDef.rewardRep} реп`);
-        this.toast(`Награда: ${rewards.join(', ')}`, 'money');
-      }
-      sfx.win();
-    } else {
-      this.state.achievements[id] = state;
-    }
-    this.bump();
-  }
+  // ==================== АЧИВКИ (вторая версия для совместимости) ====================
+  // updateAchievement уже определён выше (строка 1629), используем его
 
   getAchievementsData() {
     return ACHIEVEMENTS.map(ach => {
