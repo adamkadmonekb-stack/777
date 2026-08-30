@@ -645,16 +645,18 @@ if (this.state.activeVehicle) {
         case 'kiosk': this.prompt = 'Киоск «Печать» — газета 20 ₽'; break;
         case 'baraholka': this.prompt = 'Барахолка: продать и купить'; break;
         case 'worker': { const w = WORKERS.find(w => w.id === best!.data); this.prompt = `${w?.name} — предложить работу`; break; }
-case 'vehicle': {
-  const vid = o.data;
-  const def = VEHICLES[vid];
-  this.prompt = this.state.activeVehicle === vid 
-    ? `Выйти из ${def?.name}` 
-    : !this.state.activeVehicle 
-      ? `Сесть на ${def?.name}` 
-      : 'Сначала выйдите из текущего транспорта';
-  break;
-}
+        case 'vehicle': {
+          const vid = best.data;
+          const def = VEHICLES[vid];
+          const owned = this.state.vehicles.find(v => v.id === vid);
+          if (!def) { this.prompt = 'Транспорт'; break; }
+          this.prompt = this.state.activeVehicle === vid
+            ? `Выйти из ${def.name}`
+            : !this.state.activeVehicle
+              ? (owned ? `Сесть в ${def.name} (ваш)` : `Сесть на ${def.name}`)
+              : 'Сначала выйдите из текущего транспорта';
+          break;
+        }
         default: break;
       }
     }
@@ -735,17 +737,6 @@ case 'vehicle': {
       case 'fridge': return 'Открыть холодильник [E]';
       case 'washer': return 'Постирать одежду (гигиена +20) [E]';
       case 'tv': return 'Смотреть ТВ (настроение +15) [E]';
-case 'vehicle': {
-  const vid = o.data;
-  if (this.state.activeVehicle === vid) {
-    this.exitVehicle();
-  } else if (!this.state.activeVehicle) {
-    this.enterVehicle(vid);
-  } else {
-    this.toast('Сначала выйдите из текущего транспорта', 'info');
-  }
-  break;
-}
       case 'toilet': return 'Воспользоваться туалетом [E]';
       default: return 'Осмотреть';
     }
@@ -1054,18 +1045,6 @@ this.updateAchievement('apartment_cook_15', s.cookCount);
       case 'kiosk': this.buyNewspaper(); break;
       case 'baraholka': this.openModal({ kind: 'baraholka' }); break;
       case 'worker': this.openModal({ kind: 'workers' }); break;
-case 'vehicle': {
-  // Транспорт игрока
-  const vid = o.data;
-  if (this.state.activeVehicle === vid) {
-    this.exitVehicle();
-  } else if (!this.state.activeVehicle) {
-    this.enterVehicle(vid);
-  } else {
-    this.toast('Сначала выйдите из текущего транспорта', 'info');
-  }
-  break;
-}
       default: break;
     }
   }

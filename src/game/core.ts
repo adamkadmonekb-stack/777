@@ -28,6 +28,7 @@ export interface ShopDef {
 // множитель цен по городу для каждого магазина
 export const SHOP_MULT: Record<string, 'food' | 'cloth' | 'tech'> = {
   pyaterochka: 'food', secondhand: 'cloth', svyaznoy: 'tech', stroymarket: 'tech', pharmacy: 'food',
+  autoparts: 'tech', razborka: 'tech', autosalon: 'tech', gasstation: 'tech',
 };
 export interface BackpackDef { id: number; name: string; slots: number; price: number; desc: string; rep?: number; }
 export interface ApartmentDef { id: string; name: string; price: number; rooms: number; desc: string; income: number; }
@@ -118,6 +119,16 @@ fuel98: { id: 'fuel98', name: 'АИ-98 (л)', cat: 'fuel', stack: 100, price: 62
 diesel: { id: 'diesel', name: 'Дизель (л)', cat: 'fuel', stack: 100, price: 55, desc: 'Дизельное топливо' },
 coffee: { id: 'coffee', name: 'Кофе с собой', cat: 'food', stack: 5, price: 80, desc: 'Горячий кофе. Энергия +20', fx: { energy: 20 } },
 washer_fluid: { id: 'washer_fluid', name: 'Омывайка (-20°C)', cat: 'tool', stack: 3, price: 150, desc: 'Жидкость для стеклоомывателя' },
+// Запчасти для авто
+wheel_summer: { id: 'wheel_summer', name: 'Летние шины', cat: 'tool', stack: 4, price: 3500, desc: 'Комплект летних шин' },
+wheel_winter: { id: 'wheel_winter', name: 'Зимние шины', cat: 'tool', stack: 4, price: 4500, desc: 'Комплект зимних шин' },
+wheel_sport: { id: 'wheel_sport', name: 'Спортивные шины', cat: 'tool', stack: 4, price: 8000, desc: 'Спортивные шины для гонок' },
+engine_part: { id: 'engine_part', name: 'Деталь двигателя', cat: 'tool', stack: 2, price: 15000, desc: 'Запчасть для ремонта двигателя' },
+brake_pad: { id: 'brake_pad', name: 'Тормозные колодки', cat: 'tool', stack: 4, price: 2500, desc: 'Комплект тормозных колодок' },
+battery: { id: 'battery', name: 'Аккумулятор', cat: 'tool', stack: 1, price: 6000, desc: 'Автомобильный аккумулятор' },
+wheel_used: { id: 'wheel_used', name: 'Б/У шины', cat: 'tool', stack: 4, price: 1200, desc: 'Б/У шины (шанс 20% лопнуть)' },
+engine_used: { id: 'engine_used', name: 'Б/У двигатель', cat: 'tool', stack: 1, price: 5000, desc: 'Б/У двигатель (шанс 30% заглохнуть)' },
+part_random: { id: 'part_random', name: 'Случайная запчасть', cat: 'tool', stack: 1, price: 500, desc: 'Запчасть с разборки (без гарантии)' },
 };
 
 // ==================== РЮКЗАКИ ====================
@@ -213,6 +224,39 @@ export const SHOPS: ShopDef[] = [
     { item: 'coffee', price: 80, tab: 'Магазин' },
     { item: 'water', price: 40, tab: 'Магазин' },
     { item: 'washer_fluid', price: 150, tab: 'Магазин' },
+  ],
+},
+{
+  id: 'autoparts',
+  name: 'Автозапчасти «Оригинал»',
+  kind: 'Запчасти',
+  seller: 'Продавец Сергей',
+  phrase: '«Всё для твоей ласточки!»',
+  wall: '#4a6a8a',
+  floor: '#3a5a7a',
+  tabs: ['Колёса','Двигатель','Тормоза','Аккумуляторы'],
+  goods: [
+    { item: 'wheel_summer', price: 3500, tab: 'Колёса' },
+    { item: 'wheel_winter', price: 4500, tab: 'Колёса' },
+    { item: 'wheel_sport', price: 8000, tab: 'Колёса' },
+    { item: 'engine_part', price: 15000, tab: 'Двигатель' },
+    { item: 'brake_pad', price: 2500, tab: 'Тормоза' },
+    { item: 'battery', price: 6000, tab: 'Аккумуляторы' },
+  ],
+},
+{
+  id: 'razborka',
+  name: 'Разборка «У Васи»',
+  kind: 'Б/У запчасти',
+  seller: 'Вася',
+  phrase: '«Дёшево, но без гарантии»',
+  wall: '#3a3a3a',
+  floor: '#2a2a2a',
+  tabs: ['Колёса','Двигатель','Разное'],
+  goods: [
+    { item: 'wheel_used', price: 1200, tab: 'Колёса' },
+    { item: 'engine_used', price: 5000, tab: 'Двигатель' },
+    { item: 'part_random', price: 500, tab: 'Разное' },
   ],
 },
 ];
