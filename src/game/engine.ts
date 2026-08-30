@@ -56,7 +56,9 @@ export type Modal =
   | { kind: 'factory'; id: 'factory' | 'workshop' }
   | { kind: 'entrance'; id: string }
   | { kind: 'theft' }
-  | { kind: 'minigame'; game: 'dump' | 'clean' | 'repair' | 'fish' | 'qte' | 'carry' | 'cut'; data: Record<string, unknown> };
+  | { kind: 'minigame'; game: 'dump' | 'clean' | 'repair' | 'fish' | 'qte' | 'carry' | 'cut'; data: Record<string, unknown> }
+  | { kind: 'delivery'; shopId: 'pyaterochka' }
+  | { kind: 'highway'; shopId: 'stroymarket' };
 
 export interface TravelState { to: number; mode: Transport; t: number; dur: number; }
 
@@ -1021,10 +1023,10 @@ this.updateAchievement('apartment_cook_15', s.cookCount);
         // Особая логика для Пятёрочки и Стройматериалов с доставкой
         if (o.data === 'pyaterochka') {
           // Меню выбора: магазин или работа курьером
-          this.openDeliveryMenu('pyaterochka');
+          this.openModal({ kind: 'delivery', shopId: 'pyaterochka' });
         } else if (o.data === 'stroymarket') {
           // Меню выбора: магазин или доставка стройматериалов
-          this.openHighwayMenu();
+          this.openModal({ kind: 'highway', shopId: 'stroymarket' });
         } else {
           this.openModal({ kind: 'shop', id: o.data ?? 'pyaterochka' });
         }

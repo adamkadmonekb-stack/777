@@ -1,1 +1,30 @@
-(src/game/world.ts)
+```gitignore
+# Compiled and build artifacts
+*.tsbuildinfo
+*.js.map
+*.d.ts
+
+# Dependencies
+node_modules/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+target/
+out/
+```
