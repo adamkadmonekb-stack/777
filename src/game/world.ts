@@ -289,11 +289,11 @@ const safeBld = (x: number, y: number, w: number, h: number, name: string, wall:
   solids.push({ x: px(shopB.x), y: px(shopB.y), w: shopB.w * T, h: shopB.h * T });
   // главного входа в цех №2 НЕТ — двери заварены. Работает только чёрный вход (кража)
   objects.push({ id: 'theft', kind: 'theft', x: px(shopB.x + shopB.w) + 8, y: px(shopB.y + shopB.h / 2) });
-  safeBld(58, 3, 9, 5, 'СКЛАД', '#72685a', '#4e463a', 'factory');
+  safeBld(67, 3, 9, 5, 'СКЛАД', '#72685a', '#4e463a', 'factory'); // Сдвинут вправо на 100% ширины (было 58, стало 67 = 58 + 9)
   const metalB = { x: 86, y: 3, w: 7, h: 4 } as Building;
   buildings.push({ ...metalB, name: 'ПРИЁМ МЕТАЛЛА', wall: '#3e6a8a', roof: '#2a4a62', kind: 'booth', sign: 'МЕТАЛЛОЛОМ' });
   solids.push({ x: px(86), y: px(3), w: 7 * T, h: 4 * T });
-  objects.push({ id: 'rec_metal', kind: 'recycle', x: px(89.5), y: px(7) - 6, data: 'metal' });
+  objects.push({ id: 'rec_metal', kind: 'recycle', x: px(89.5), y: px(7) - 6, data: 'metal' }); // Точка приёма металлолома у входа в здание (E нажимается)
   const dumpsF = [[24, 10], [47, 6], [63, 10], [74, 4], [92, 10], [26, 3]];
   dumpsF.forEach((d, i) => objects.push({ id: 'dump_f' + i, kind: 'dump', x: px(d[0]), y: px(d[1]), data: 'factory' }));
 
@@ -404,9 +404,9 @@ objects.push({ id: 'ticket', kind: 'ticket', x: px(78), y: px(91) - 8 });
   const glassB: Building = { x: 35, y: 66, w: 5, h: 2.5, name: 'СТЕКЛОТАРА', wall: '#3e8a5e', roof: '#2a6242', kind: 'booth', sign: 'СТЕКЛОТАРА' };
   buildings.push(glassB); solids.push({ x: px(35), y: px(66), w: 5 * T, h: 2.5 * T });
   objects.push({ id: 'rec_glass', kind: 'recycle', x: px(37.5), y: px(68.5) - 6, data: 'glass' });
-  const paperB: Building = { x: 72, y: 62, w: 6, h: 3, name: 'МАКУЛАТУРА', wall: '#8a8a3e', roof: '#62622a', kind: 'booth', sign: 'МАКУЛАТУРА' };
-  buildings.push(paperB); solids.push({ x: px(72), y: px(62), w: 6 * T, h: 3 * T });
-  objects.push({ id: 'rec_paper', kind: 'recycle', x: px(75), y: px(65) - 6, data: 'paper' });
+  const paperB: Building = { x: 72, y: 50, w: 6, h: 3, name: 'МАКУЛАТУРА', wall: '#8a8a3e', roof: '#62622a', kind: 'booth', sign: 'МАКУЛАТУРА' }; // Поднять вверх (было y:62, стало y:50)
+  buildings.push(paperB); solids.push({ x: px(72), y: px(50), w: 6 * T, h: 3 * T });
+  objects.push({ id: 'rec_paper', kind: 'recycle', x: px(75), y: px(53) - 6, data: 'paper' }); // Точка сдачи макулатуры сдвинута вверх вместе со зданием
   const dumpsS = [[8, 67], [22, 67], [60, 68], [86, 61], [93, 66], [79, 68]];
   dumpsS.forEach((d, i) => objects.push({ id: 'dump_s' + i, kind: 'dump', x: px(d[0]), y: px(d[1]), data: i >= 3 ? 'suburb' : 'station' }));
   objects.push({ id: 'bench_s0', kind: 'bench', x: px(40), y: px(59.4) });
@@ -471,10 +471,8 @@ objects.push({ id: 'player_truck', kind: 'vehicle' as any, x: px(parkingX + 9), 
 
 
   // ---- деревья ----
-  const treeSpots: [number, number, number, number][] = [
-    [2, 46, 40, 57], [40, 14, 50, 28], [60, 46, 68, 57], [72, 14, 98, 28],
-    [2, 14, 6, 28], [2, 30, 5, 34], [76, 46, 98, 57],
-  ];
+  // ❌ УДАЛЕНО: Все деревья убраны с карты
+  const treeSpots: [number, number, number, number][] = [];
   for (const [x1, y1, x2, y2] of treeSpots) {
     const n = ri(5, 9);
     for (let k = 0; k < n; k++) {
