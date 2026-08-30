@@ -1,0 +1,17 @@
+```
+# Compressed archives
+*.rar
+*.tar
+*.zip
+*.gz
+*.tar.gz
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.Z
+*.lz
+*.lzo
+*.tar.bz2
+*.tar.xz
+```
