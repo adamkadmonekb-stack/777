@@ -59,6 +59,7 @@ export interface World {
 }
 
 const px = (t: number) => t * T;
+export { px };
 
 function buildInteriors(): Record<string, Interior> {
   const res: Record<string, Interior> = {};
